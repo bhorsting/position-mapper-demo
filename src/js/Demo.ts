@@ -5,6 +5,8 @@ import { EventTypes } from './preview-logic/events/EventTypes';
 import { PreviewResponseEvent } from './preview-logic/events/PreviewResponseEvent';
 import { ThreeDeeInitEvent } from './preview-logic/events/ThreeDeeInitEvent';
 
+const PREVIEW_SET_ID: number = 2;
+
 export const renderSettingsMock: IRenderSettings = {
   useCrop: false,
   fakeWhite: false,
@@ -62,7 +64,7 @@ export class Demo {
           new PreviewRequestEvent({
             previewType: PREVIEW_TYPES.THREE_D,
             renderData: {
-              previewSetId: 2,
+              previewSetId: PREVIEW_SET_ID,
               previewImage: e.eventData.image,
               size: { x: 1080, y: 1080 },
               customerCreatedContentId: 1,
