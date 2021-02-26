@@ -1,4 +1,4 @@
-import { renderEventBus, renderEventManager } from './preview-logic/PreviewLogic';
+import { renderEventBus } from './preview-logic/PreviewLogic';
 import { PreviewRequestEvent } from './preview-logic/events/PreviewRequestEvent';
 import { IRenderSettings, PREVIEW_TYPES } from './preview-logic/events/IPreviewRequestData';
 import { EventTypes } from './preview-logic/events/EventTypes';
@@ -16,18 +16,20 @@ export const renderSettingsMock: IRenderSettings = {
 
 export class Demo {
   constructor() {
-    console.log('Render event manager up on', renderEventManager);
     const demoSvg: SVGSVGElement = <any>document.getElementById('svg2');
-    console.log('Found SVG at', demoSvg);
-    renderEventBus.addEventListener(
-      EventTypes[EventTypes.PREVIEW_RESPONSE],
-      this.handleResponse.bind(this)
-    );
+    console.log('Going to render SVG to 2D image at', demoSvg);
+    // First, initialize the 3D renderer. This is synchronous
     renderEventBus.dispatchEvent(
       new ThreeDeeInitEvent({
         baseUrl: 'assets/previewsets/',
       })
     );
+    // Listen to any responses from the EventBus
+    renderEventBus.addEventListener(
+      EventTypes[EventTypes.PREVIEW_RESPONSE],
+      this.handleResponse.bind(this)
+    );
+    // Create a 2D preview of the SVG
     renderEventBus.dispatchEvent(
       new PreviewRequestEvent({
         previewType: PREVIEW_TYPES.TWO_D,
@@ -44,6 +46,12 @@ export class Demo {
       })
     );
   }
+
+  /**
+   * Handle any responses from the EventBus here.
+   * @param e
+   * @private
+   */
   private handleResponse(e: PreviewResponseEvent) {
     console.log(e);
     switch (e.eventData.type) {
