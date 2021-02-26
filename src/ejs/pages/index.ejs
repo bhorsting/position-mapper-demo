@@ -16,7 +16,15 @@ const breadCrumbs = [];
 <%- include(  '../components/common/_header',{pageData: pageData}); %>
 <main role="main" class="l-main">
     <div class="p-hero u-content--sm">
-        <img src="<%= pageData.dir %>assets/images/hero.jpg" alt="">
+		<%- include(  `../components/assets/shaders` ) %>
+		<%- include(  `../components/assets/svgtest` ) %>
+		<canvas id="outputCanvas"></canvas>
+		<hr>
+		<p>2D Image</p>
+		<img id="image2d">
+		<hr>
+		<p>3D Image</p>
+		<img id="image3d">
     </div>
 </main>
 <%- include(  '../components/common/_footer',{pageData: pageData}); %>

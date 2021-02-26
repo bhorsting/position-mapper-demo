@@ -1,10 +1,8 @@
 <%
-// デフォルトを設定 - env.jsonとマージ
-const utils = include( './_utils',{pageData: pageData}); 
+const utils = include( './_utils',{pageData: pageData});
 const rootUrl = utils.getRootUrl();
 const title = utils.getTitle();
 const currentUrl = utils.getCurrentUrl();
-const ogimage =  rootUrl + (pageData.ogimage || ASSETS_PATH + "images/ogp.png");
 const keywords = pageData.keywords || KEYWORDS;
 const description = pageData.description || DESCRIPTION;
 %><head>
@@ -17,7 +15,6 @@ const description = pageData.description || DESCRIPTION;
 <meta property="og:title" content="<%= title %>">
 <meta property="og:type" content="article">
 <meta property="og:url" content="<%= currentUrl %>">
-<meta property="og:image" content="<%= ogimage %>">
 <meta property="og:site_name" content="<%= SITE_NAME %>">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="<%= title %>">

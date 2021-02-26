@@ -1,0 +1,291 @@
+precision mediump float;
+
+// our 4 canvases
+uniform sampler2D u_bas;
+uniform sampler2D u_tex;
+uniform sampler2D u_pos;
+uniform sampler2D u_ref;
+//@TEMPLATE_SAMPLERS@//
+
+uniform vec2 u_resolution;
+uniform float u_num_tiles;
+uniform float u_fake_white;
+
+// TEST
+
+uniform int u_shine_color;
+
+// the texCoords passed in from the vertex shader.
+// note: we're assuming the canvases are the same size.
+
+varying vec2 v_texCoord;
+
+// If the difference between the center and corner pixels is larger than this,
+// do not apply position smoothing
+
+vec2 blur_threshold = vec2(512.0,512.0);
+
+vec2 getPos(vec2 texcoord) {
+    vec4 rgb = texture2D(u_pos, texcoord)*255.0;
+    float color24 = (rgb.r*256.0*256.0)+(rgb.g*256.0)+rgb.b;
+    float y = (floor(color24 / 4096.0));
+    float x = color24 - y*4096.0;
+    return vec2(x,y);
+}
+
+
+vec4 do_blur(vec2 blurfac, sampler2D tex, vec2 posCoord) {
+    vec2 dofblur9 = blurfac*0.9;
+    vec2 dofblur7 = blurfac*0.7;
+    vec2 dofblur4 = blurfac*0.4;
+
+    vec4 col = vec4(0.0 );
+
+    col += texture2D(tex, posCoord );
+
+    col += texture2D(tex, posCoord+vec2(0.0,   0.4  )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.15,  0.37 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.29,  0.29 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(-0.37,  0.15 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.40,  0.0  )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.37, -0.15 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.29, -0.29 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(-0.15, -0.37 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.0,  -0.4  )*blurfac );
+    col += texture2D(tex, posCoord+vec2(-0.15,  0.37 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(-0.29,  0.29 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.37,  0.15 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(-0.4,   0.0  )*blurfac );
+    col += texture2D(tex, posCoord+vec2(-0.37, -0.15 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(-0.29, -0.29 )*blurfac );
+    col += texture2D(tex, posCoord+vec2(0.15, -0.37 )*blurfac );
+
+    col += texture2D(tex, posCoord+vec2(0.15,  0.37 )*dofblur9 );
+    col += texture2D(tex, posCoord+vec2(-0.37,  0.15 )*dofblur9 );
+    col += texture2D(tex, posCoord+vec2(0.37, -0.15 )*dofblur9 );
+    col += texture2D(tex, posCoord+vec2(-0.15, -0.37 )*dofblur9 );
+    col += texture2D(tex, posCoord+vec2(-0.15,  0.37 )*dofblur9 );
+    col += texture2D(tex, posCoord+vec2(0.37,  0.15 )*dofblur9 );
+    col += texture2D(tex, posCoord+vec2(-0.37, -0.15 )*dofblur9 );
+    col += texture2D(tex, posCoord+vec2(0.15, -0.37 )*dofblur9 );
+
+    col += texture2D(tex, posCoord+vec2(0.29,  0.29 )*dofblur7 );
+    col += texture2D(tex, posCoord+vec2(0.40,  0.0  )*dofblur7 );
+    col += texture2D(tex, posCoord+vec2(0.29, -0.29 )*dofblur7 );
+    col += texture2D(tex, posCoord+vec2(0.0,  -0.4  )*dofblur7 );
+    col += texture2D(tex, posCoord+vec2(-0.29,  0.29 )*dofblur7 );
+    col += texture2D(tex, posCoord+vec2(-0.4,   0.0  )*dofblur7 );
+    col += texture2D(tex, posCoord+vec2(-0.29, -0.29 )*dofblur7 );
+    col += texture2D(tex, posCoord+vec2(0.0,   0.4  )*dofblur7 );
+
+    col += texture2D(tex, posCoord+vec2(0.29,  0.29 )*dofblur4 );
+    col += texture2D(tex, posCoord+vec2(0.4,   0.0  )*dofblur4 );
+    col += texture2D(tex, posCoord+vec2(0.29, -0.29 )*dofblur4 );
+    col += texture2D(tex, posCoord+vec2(0.0,  -0.4  )*dofblur4 );
+    col += texture2D(tex, posCoord+vec2(-0.29,  0.29 )*dofblur4 );
+    col += texture2D(tex, posCoord+vec2(-0.4,   0.0  )*dofblur4 );
+    col += texture2D(tex, posCoord+vec2(-0.29, -0.29 )*dofblur4 );
+    col += texture2D(tex, posCoord+vec2(0.0,   0.4  )*dofblur4 );
+
+    return col;
+}
+
+float get_luminance (vec4 rgba)
+{
+     return (0.2126 * rgba.r) + (0.7152 * rgba.g) + (0.0722 * rgba.b);
+}
+
+vec4 fake_white_luma(vec4 c) {
+    float luma = smoothstep(0.98, 1.0, get_luminance(c));
+    return vec4(luma, luma, luma, 1.0);
+}
+
+float blur_luma_and_thin_edges(float blurFactor, sampler2D tex, vec2 posCoord) {
+    vec2 blurfac = vec2(blurFactor, blurFactor);
+    vec4 blurred = do_blur(blurfac, tex, posCoord);
+    vec4 luma_blurred = fake_white_luma(blurred / 41.0);
+
+    vec4 sobel_factor = vec4(0.0, 0.0, 0.0, 1.0 );
+
+    vec2 size = (1.0 / u_resolution)*9.0;
+
+    /*
+
+    Edge detection kernel
+
+    0, 1, 0,
+    1 -4, 1,
+    0, 1, 0
+    */
+
+    float sobel_strength = 1.5;
+
+    sobel_factor += texture2D(tex, posCoord+(vec2(-1.0,   -1.0  )*size) )*0.0*sobel_strength;
+    sobel_factor += texture2D(tex, posCoord+(vec2(0.0,   -1.0 )*size ))*1.0*sobel_strength;
+    sobel_factor += texture2D(tex, posCoord+(vec2(1.0, -1.0 )*size ))*0.0*sobel_strength;
+
+    sobel_factor += texture2D(tex, posCoord+(vec2(-1.0, 0  )*size) )*1.0*sobel_strength;
+    sobel_factor += texture2D(tex, posCoord+(vec2(0.0, 0 )*size ))*-4.0*sobel_strength;
+    sobel_factor += texture2D(tex, posCoord+(vec2(1.0, 0 )*size ))*1.0*sobel_strength;
+
+    sobel_factor += texture2D(tex, posCoord+(vec2(-1.0,  1.0  )*size) )*0.0*sobel_strength;
+    sobel_factor += texture2D(tex, posCoord+(vec2(0.0,   1.0 )*size) )*1.0*sobel_strength;
+    sobel_factor += texture2D(tex, posCoord+(vec2(1.0, 1.0 )*size) )*0.0*sobel_strength;
+
+
+
+    return luma_blurred.r - get_luminance(sobel_factor);
+
+}
+
+
+void main() {
+    float rShine = float(u_shine_color / 256 / 256);
+    float gShine = float(u_shine_color / 256 - int(rShine * 256.0));
+    float bShine = float(u_shine_color - int(rShine * 256.0 * 256.0) - int(gShine * 256.0));
+
+    vec4 shineColor = vec4(rShine / 255.0, gShine / 255.0, bShine / 255.0, 1.0);
+
+    float maxblur = 1.0;
+    float focus = 1.0;
+    float aperture = 0.5;
+
+    // TODO this calculation can be done outside this shader
+
+    float x_size = 1.0/u_resolution.x;
+    float y_size = 1.0/u_resolution.y;
+
+    float xp = v_texCoord.x;
+    float yp = v_texCoord.y;
+
+    float num_tiles = u_num_tiles;
+
+    // Setup the accumulators
+
+    vec4 acccol = vec4(0,0,0,0);
+    vec4 accmeta = vec4(0,0,0,0);
+    vec4 accscene = vec4(0,0,0,0);
+
+    for ( float xl = -1.0; xl <= 1.0; xl+=0.5){
+        for ( float yl = -1.0; yl <= 1.0; yl+=0.5){
+            vec2 poss = vec2(xp + (xl*x_size), yp + (yl*y_size));
+
+            vec2 pos = vec2(0.0,0.0); //getPos(poss);
+
+            // Gaussian blur kernel
+
+            // Only apply the kernel if the diffrence between the pixels is not too high
+            // Get the outermost points in the kernel
+
+            vec2 nw = getPos(poss+vec2(-x_size*2.0,-y_size*2.0));
+            vec2 ne = getPos(poss+vec2(x_size*2.0,-y_size*2.0));
+
+            vec2 cw = getPos(poss+vec2(-x_size*2.0,0));
+            vec2 cc = getPos(poss+vec2(0.0000,0 ));
+            vec2 ce = getPos(poss+vec2(x_size*2.0,-y_size));
+
+            vec2 sw = getPos(poss+vec2(-x_size*2.0,y_size*2.0));
+            vec2 se = getPos(poss+vec2(x_size*2.0,y_size*2.0));
+
+            // Calculate the difference
+
+            vec2 diff = max (abs(nw-cc), abs(ne-cc));
+            diff = max (diff, abs(cw-cc));
+            diff = max (diff, abs(ce-cc));
+            diff = max (diff, abs(sw-cc));
+            diff = max (diff, abs(se-cc));
+
+            // If we are on an edge pixel, do not apply the position smoothening
+            vec2 thresdiff = diff-blur_threshold;
+
+            if(thresdiff.x > 0.0 || thresdiff.y > 0.0) {
+                pos = getPos(poss);
+            } else {
+                // Position smoothing
+
+                pos += nw*0.003765;
+                pos += getPos(poss+vec2(-x_size,-y_size*2.0))*0.015019;
+                pos += getPos(poss+vec2(0.0000,-y_size*2.0 ))*0.023792;
+                pos += getPos(poss+vec2(x_size,-y_size*2.0))*0.015019;
+                pos += ne*0.003765;
+
+                pos += getPos(poss+vec2(-x_size*2.0,-y_size))*0.015019;
+                pos += getPos(poss+vec2(-x_size,-y_size))*0.059912;
+                pos += getPos(poss+vec2(0.0000,-y_size ))*0.094907;
+                pos += getPos(poss+vec2(x_size,-y_size))*0.059912;
+                pos += getPos(poss+vec2(x_size*2.0,-y_size))*0.015019;
+
+                pos += cw*0.023792;
+                pos += getPos(poss+vec2(-x_size,0))*0.094907;
+                pos += cc*0.150342;
+                pos += getPos(poss+vec2(x_size,0))*0.094907;
+                pos += ce*0.023792;
+
+                pos += getPos(poss+vec2(-x_size*2.0,y_size))*0.015019;
+                pos += getPos(poss+vec2(-x_size,y_size))*0.059912;
+                pos += getPos(poss+vec2(0.0000,y_size ))*0.094907;
+                pos += getPos(poss+vec2(x_size,y_size))*0.059912;
+                pos += getPos(poss+vec2(x_size*2.0,y_size))*0.015019;
+
+                pos += sw*0.003765;
+                pos += getPos(poss+vec2(-x_size,y_size*2.0))*0.015019;
+                pos += getPos(poss+vec2(0.0000,y_size*2.0 ))*0.023792;
+                pos += getPos(poss+vec2(x_size,y_size*2.0))*0.015019;
+                pos += se*0.003765;
+            }
+
+
+            float y = mod(pos.y, 4096.0/num_tiles)*num_tiles;
+            float x = mod(pos.x, 4096.0/num_tiles)*num_tiles;
+
+            vec2 v_posCoord = vec2(x/4096.0,y/4096.0);
+
+            // Look up a pixel from first canvas
+            vec4 sceneColor = texture2D(u_bas, poss);
+
+            // Get alpha value from alpha map
+            vec4 metaColor = texture2D(u_ref, poss);
+
+
+            // Alpha blur
+
+            float factor = (metaColor.b - focus)/20.0;
+            vec2 dofblur = vec2 (clamp(factor*aperture, -maxblur, maxblur ) );
+
+            vec2 dofblur9 = dofblur*0.9;
+            vec2 dofblur7 = dofblur*0.7;
+            vec2 dofblur4 = dofblur*0.4;
+
+            vec4 col = do_blur(dofblur, u_tex, v_posCoord);
+
+            float a1 = 1.0-(metaColor.b * (col/41.0).a);
+
+
+            // if to be multiplied,
+            // return the 2 colors multiplied, weighted
+            //@BASE_BLEND_LOGIC@//;
+
+            accscene = accscene + sceneColor / 25.0;
+            //
+
+            //@TEMPLATE_LAYER_LOGIC@//
+
+            // Accumulate the color and meta
+
+            acccol = acccol + maincol / 25.0;
+            accmeta = accmeta + metaColor / 25.0;
+
+        }
+    }
+
+    // Add the green (shine) layer of the meta texture, clamp to 1.0
+    // Debug the blur threshold
+
+    //@TEMPLATE_FRAGCOLOR_LOGIC@//
+    /*if (acccol.r > 0.98 && acccol.g > 0.98 && acccol.b > 0.98){
+        gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+    } else {
+        gl_FragColor = min(acccol+accmeta.ggga, vec4(1.0));
+    }*/
+
+}
