@@ -1,18 +1,10 @@
-# static-site-boilerplate
+# positionmapper-demo
 
-Boilerplate for simple web development 
-
-- **JavaScript** : webpack + TypeScript
-- **CSS** : scss + PostCss Autoplefixer (build by webpack)
-- **HTML** : EJS
-- **Local Server** : webpack-dev-server
-- **Linter/Formatter**: ESLint/prettier
+Shows off the 2D / 3D rendering mechanisms at Greetz
 
 
 ## Setup
 ```bash
-git clone https://github.com/sk-rt/static-site-boilerplate-ts.git
-cd static-site-boilerplate-ts
 yarn install  #or npm install
 ```
 
